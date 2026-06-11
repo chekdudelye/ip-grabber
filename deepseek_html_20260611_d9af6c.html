@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Logger</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0a0f1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            color: white;
+        }
+        .container {
+            background: #1a1f2e;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            text-align: center;
+        }
+        .ip-box {
+            background: #0a0f1a;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-size: 24px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+        .success { background: #1e4620; padding: 10px; border-radius: 8px; margin: 10px 0; }
+        .error { background: #5a1e1e; padding: 10px; border-radius: 8px; margin: 10px 0; }
+        .warning {
+            background: #664d00;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-size: 14px;
+            border-left: 4px solid #ffaa00;
+        }
+        button {
+            background: #5865F2;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover { background: #4752c4; }
+        .note { font-size: 12px; color: #888; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="warning">
+            ⚠️ NOTICE: This page automatically logs your IP address when you visit.
+        </div>
+        <h1>🔍 Your IP Address</h1>
+        <div class="ip-box" id="ipDisplay">Detecting...</div>
+        <div id="status"></div>
+        <button onclick="refreshIP()">🔄 Refresh</button>
+        <div class="note">
+            Your IP, browser info, and visit time are sent to a Discord webhook for logging.<br>
+            By using this page, you consent to this data collection.
+        </div>
+    </div>
+
+    <script>
+        const WEBHOOK = "https://discord.com/api/webhooks/1514440435878203413/Z6K-DGVLzSgLPLXNqDGIn8COL9OmsKDdVoJvvpjRpuEl9FSVhmeSlDPqaotgm5lW_auh";
+        
+        function showStatus(msg, type) {
+            const el = document.getElementById('status');
+            el.innerHTML = `<div class="${type}">${msg}</div>`;
+            setTimeout(() => { if(el.innerHTML.includes(msg)) el.innerHTML = ''; }, 6000);
+        }
+
+        async function sendToDiscord(ip) {
+            try {
+                const embed = {
+                    title: "New Visitor",
+                    color: 0xFF4444,
+                    fields: [
+                        { name: "IP", value: ip, inline: true },
+                        { name: "Time", value: new Date().toLocaleString(), inline: true },
+                        { name: "User Agent", value: navigator.userAgent.substring(0, 100) }
+                    ]
+                };
+                const res = await fetch(WEBHOOK, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ embeds: [embed] })
+                });
+                if (res.ok) showStatus(`✅ IP ${ip} sent to Discord`, "success");
+                else showStatus(`❌ Webhook error: ${res.status}`, "error");
+            } catch(e) { showStatus("❌ Failed to send", "error"); }
+        }
+
+        async function getIP() {
+            try {
+                const res = await fetch('https://api.ipify.org?format=json');
+                const data = await res.json();
+                document.getElementById('ipDisplay').innerText = data.ip;
+                await sendToDiscord(data.ip);
+            } catch(e) {
+                document.getElementById('ipDisplay').innerText = "Failed to detect";
+                showStatus("Could not detect IP", "error");
+            }
+        }
+
+        async function refreshIP() {
+            try {
+                const res = await fetch('https://api.ipify.org?format=json');
+                const data = await res.json();
+                document.getElementById('ipDisplay').innerText = data.ip;
+                showStatus(`IP refreshed: ${data.ip} (not re-sent)`, "success");
+            } catch(e) { showStatus("Refresh failed", "error"); }
+        }
+
+        getIP();
+    </script>
+</body>
+</html>
